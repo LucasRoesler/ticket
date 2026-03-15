@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# tk-plugin: Print ticket workflow guide for AI agents
+# tk-plugin-version: 1.0.0
+set -euo pipefail
+
+cat << 'EOF'
+# Ticket Workflow Guide
+
+Tickets are markdown files stored in TICKETS_DIR. When TICKETS_DIR is set as
+an env var (global vault mode), list commands automatically filter to the
+current project via the project ID derived from the git initial commit hash —
+no -T flag needed.
+
+Partial ID matching works everywhere: `tk show 5c4` matches `proj-5c46`.
+
+## 1. Find the next task(s)
+
+```bash
+# What can I work on right now? (open/in-progress, all deps resolved)
+tk ready
+
+# What is blocked and why?
+tk blocked
+
+# Show the dependency tree for a specific ticket
+tk dep tree <id>
+```
+
+`ready` is the primary command. It sorts by priority (0 = highest) and only
+shows tickets whose dependencies are all closed.
+
+## 2. Create a ticket
+
+```bash
+# Minimal
+tk create "Fix login redirect loop"
+
+# With detail
+tk create "Fix login redirect loop" \
+  -t bug \
+  -p 1 \
+  -d "Users are redirected in a loop after OAuth callback" \
+  --acceptance "Login flow completes without redirect loop" \
+  --tags auth,oauth
+```
+
+Types: bug feature task epic chore (default: task)
+Priority: 0-4, lower is higher (default: 2)
+
+The command prints the new ticket ID.
+
+## 3. Break down a ticket into subtasks
+
+Create child tickets with --parent, then express dependency order with dep
+so ready surfaces them in the right sequence.
+
+```bash
+parent=$(tk create "Overhaul auth flow" -t epic)
+
+t1=$(tk create "Audit existing OAuth callbacks" --parent $parent)
+t2=$(tk create "Fix redirect loop" -t bug --parent $parent)
+t3=$(tk create "Add integration tests" --parent $parent)
+
+tk dep $t2 $t1   # t2 depends on t1
+tk dep $t3 $t2   # t3 depends on t2
+
+tk dep tree $parent  # verify
+```
+
+`tk show <parent>` lists all children with their statuses.
+
+## 4. Set ticket status
+
+```bash
+tk start <id>   # in_progress
+tk close <id>   # closed
+tk reopen <id>  # back to open
+```
+
+## 5. Manage ticket content
+
+```bash
+tk show <id>                              # read ticket
+tk add-note <id> "note text"              # append timestamped note
+echo "note text" | tk add-note <id>      # pipe a note
+```
+
+Ticket files are plain markdown with YAML frontmatter — you can read and edit
+them directly in TICKETS_DIR.
+
+## Project ID
+
+```bash
+tk project-id          # print current project's ID (git initial commit hash)
+tk project-id set foo  # override with a manual slug
+```
+
+The project ID is used automatically as the tag filter in global vault mode,
+keeping tickets separated by project across the shared vault.
+EOF
