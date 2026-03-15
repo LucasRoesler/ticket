@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ticket-project-id - plugin for the ticket CLI
+# Manages a stable project ID based on the git initial commit hash.
+# Falls back to a manually set ID stored in .ticket-project-id at the project root.
+#
+# Usage:
+#   ticket project-id          Print the project ID for the current directory
+#   ticket project-id set ID   Save a manual project ID to .ticket-project-id
+
+PROJECT_ID_FILE=".ticket-project-id"
+
+find_git_root() {
+    git rev-parse --show-toplevel 2>/dev/null
+}
+
+get_id_from_git() {
+    git rev-list --max-parents=0 HEAD 2>/dev/null | cut -c1-8
+}
+
+get_id_from_file() {
+    local root="${1:-$PWD}"
+    local file="$root/$PROJECT_ID_FILE"
+    [[ -f "$file" ]] && cat "$file"
+}
+
+prompt_and_save() {
+    local root="$1"
+    local file="$root/$PROJECT_ID_FILE"
+
+    echo "Could not determine a project ID automatically (no git initial commit found)." >&2
+    printf "Enter a project ID to save to %s: " "$file" >&2
+    read -r id
+    if [[ -z "$id" ]]; then
+        echo "Error: no ID provided" >&2
+        exit 1
+    fi
+    echo "$id" > "$file"
+    echo "$id"
+}
+
+cmd_get() {
+    local root
+    root=$(find_git_root || echo "$PWD")
+
+    # Check for manually saved ID first
+    local saved
+    saved=$(get_id_from_file "$root") || true
+    if [[ -n "$saved" ]]; then
+        echo "$saved"
+        return 0
+    fi
+
+    # Try git initial commit hash
+    local git_id
+    git_id=$(get_id_from_git) || true
+    if [[ -n "$git_id" ]]; then
+        echo "$git_id"
+        return 0
+    fi
+
+    # Prompt and save fallback
+    prompt_and_save "$root"
+}
+
+cmd_set() {
+    local id="${1:-}"
+    if [[ -z "$id" ]]; then
+        echo "Usage: ticket project-id set <id>" >&2
+        exit 1
+    fi
+
+    local root
+    root=$(find_git_root || echo "$PWD")
+    local file="$root/$PROJECT_ID_FILE"
+
+    echo "$id" > "$file"
+    echo "Saved project ID '$id' to $file"
+}
+
+case "${1:-get}" in
+    get)      cmd_get ;;
+    set)      shift; cmd_set "$@" ;;
+    --help|-h)
+        echo "Usage: ticket project-id [get]"
+        echo "       ticket project-id set <id>"
+        ;;
+    *)
+        echo "Unknown subcommand: $1" >&2
+        exit 1
+        ;;
+esac

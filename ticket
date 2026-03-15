@@ -57,6 +57,17 @@ init_tickets_dir() {
 
 TICKET_PAGER="${TICKET_PAGER:-${PAGER:-}}"
 
+# When TICKETS_DIR is set as an env var (global vault mode) and no tag filter
+# was explicitly provided, inject the project ID as the tag filter.
+_autotag() {
+    local tag_filter_ref="$1"
+    if [[ -z "${!tag_filter_ref}" && -n "${TICKETS_DIR:-}" ]]; then
+        local id
+        id=$(ticket-project-id get 2>/dev/null) || true
+        [[ -n "$id" ]] && printf -v "$tag_filter_ref" '%s' "$id"
+    fi
+}
+
 # Prefer ripgrep if available, fall back to grep
 if command -v rg &>/dev/null; then
     _grep() { rg "$@"; }
@@ -661,6 +672,7 @@ cmd_ready() {
             *) shift ;;
         esac
     done
+    _autotag tag_filter
 
     awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" '
     BEGIN { FS=": "; in_front=0 }
@@ -752,6 +764,7 @@ cmd_closed() {
             *) shift ;;
         esac
     done
+    _autotag tag_filter
 
     # List files by mtime (most recent first), filter closed, limit output
     local files
@@ -798,6 +811,7 @@ cmd_blocked() {
             *) shift ;;
         esac
     done
+    _autotag tag_filter
 
     awk -v assignee_filter="$assignee_filter" -v tag_filter="$tag_filter" '
     BEGIN { FS=": "; in_front=0 }
