@@ -19,6 +19,10 @@ def before_all(context):
 
 def before_scenario(context, scenario):
     """Create a fresh temporary directory for each scenario."""
+    # Clear TICKETS_DIR so the script discovers .tickets/ by walking parents
+    # from the test's temp directory, not from a pre-existing env var.
+    os.environ.pop('TICKETS_DIR', None)
+
     # Create a temporary directory for this scenario
     context.test_dir = tempfile.mkdtemp(prefix='ticket_test_')
 

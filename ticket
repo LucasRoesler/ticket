@@ -64,7 +64,9 @@ _autotag() {
     if [[ -z "${!tag_filter_ref}" && -n "${TICKETS_DIR:-}" ]]; then
         local id
         id=$(ticket-project-id get 2>/dev/null) || true
-        [[ -n "$id" ]] && printf -v "$tag_filter_ref" '%s' "$id"
+        if [[ -n "$id" ]]; then
+            printf -v "$tag_filter_ref" '%s' "$id"
+        fi
     fi
 }
 
