@@ -9,3 +9,5 @@ edit
 ls
 query
 migrate-beads
+project-id
+agent-help

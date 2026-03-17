@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# tk-plugin: Print or set the project ID for the current directory
+# tk-plugin-version: 1.0.0
 set -euo pipefail
 
 # ticket-project-id - plugin for the ticket CLI
